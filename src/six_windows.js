@@ -46,6 +46,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import GUI from 'lil-gui'
+import { thickness } from 'three/src/nodes/core/PropertyNode.js'
 
 /**
  * Base
@@ -113,7 +114,7 @@ const normalMaterial = new THREE.MeshNormalMaterial()
 const quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 const quadScene = new THREE.Scene()
 
-const outlineParams = { color: '#ffffff', depthBias: 1, depthMult: 1, normalBias: 0.5, normalMult: 1 }
+const outlineParams = { color: '#ffffff', depthBias: 1, depthMult: 1, normalBias: 0.5, normalMult: 1, thickness:1 }
 
 const quadMaterial = new THREE.ShaderMaterial({
     uniforms: {
@@ -126,6 +127,7 @@ const quadMaterial = new THREE.ShaderMaterial({
         uOutlineColor:{ value: new THREE.Color(0xffffff) },
         uParams:      { value: new THREE.Vector4(1, 1, 1, 1) }, // depthBias, depthMult, normalBias, normalMult
         uMode:        { value: 0 },
+        uThickness: { value: 1.0 },
     },
     depthTest: false,
     depthWrite: false,
@@ -150,7 +152,7 @@ const quadMaterial = new THREE.ShaderMaterial({
         uniform int uMode;
 
         varying vec2 vUv;
-
+        uniform float uThickness;
         float readDepth(vec2 uv) {
             float z = texture2D(tDepth, uv).x;
             float viewZ = perspectiveDepthToViewZ(z, cameraNear, cameraFar);
@@ -165,23 +167,23 @@ const quadMaterial = new THREE.ShaderMaterial({
             float depth = readDepth(uv);
             vec3 normal = readNormal(uv);
 
-            // 深度差（上下左右）
-            float depthDiff = 0.0;
-            depthDiff += abs(depth - readDepth(uv + uTexel * vec2(1.0, 0.0)));
-            depthDiff += abs(depth - readDepth(uv + uTexel * vec2(-1.0, 0.0)));
-            depthDiff += abs(depth - readDepth(uv + uTexel * vec2(0.0, 1.0)));
-            depthDiff += abs(depth - readDepth(uv + uTexel * vec2(0.0, -1.0)));
+            vec2 offset = uTexel * uThickness;   // 线越粗 → 采样越远
 
-            // 法线差（含对角线）
+            float depthDiff = 0.0;
+            depthDiff += abs(depth - readDepth(uv + offset * vec2(1.0, 0.0)));
+            depthDiff += abs(depth - readDepth(uv + offset * vec2(-1.0, 0.0)));
+            depthDiff += abs(depth - readDepth(uv + offset * vec2(0.0, 1.0)));
+            depthDiff += abs(depth - readDepth(uv + offset * vec2(0.0, -1.0)));
+
             float normalDiff = 0.0;
-            normalDiff += distance(normal, readNormal(uv + uTexel * vec2(1.0, 0.0)));
-            normalDiff += distance(normal, readNormal(uv + uTexel * vec2(-1.0, 0.0)));
-            normalDiff += distance(normal, readNormal(uv + uTexel * vec2(0.0, 1.0)));
-            normalDiff += distance(normal, readNormal(uv + uTexel * vec2(0.0, -1.0)));
-            normalDiff += distance(normal, readNormal(uv + uTexel * vec2(1.0, 1.0)));
-            normalDiff += distance(normal, readNormal(uv + uTexel * vec2(1.0, -1.0)));
-            normalDiff += distance(normal, readNormal(uv + uTexel * vec2(-1.0, 1.0)));
-            normalDiff += distance(normal, readNormal(uv + uTexel * vec2(-1.0, -1.0)));
+            normalDiff += distance(normal, readNormal(uv + offset * vec2(1.0, 0.0)));
+            normalDiff += distance(normal, readNormal(uv + offset * vec2(-1.0, 0.0)));
+            normalDiff += distance(normal, readNormal(uv + offset * vec2(0.0, 1.0)));
+            normalDiff += distance(normal, readNormal(uv + offset * vec2(0.0, -1.0)));
+            normalDiff += distance(normal, readNormal(uv + offset * vec2(1.0, 1.0)));
+            normalDiff += distance(normal, readNormal(uv + offset * vec2(1.0, -1.0)));
+            normalDiff += distance(normal, readNormal(uv + offset * vec2(-1.0, 1.0)));
+            normalDiff += distance(normal, readNormal(uv + offset * vec2(-1.0, -1.0)));
 
             float depthBias = uParams.x;
             float depthMult = uParams.y;
@@ -231,6 +233,9 @@ outlineFolder.add(outlineParams, 'depthMult').min(0).max(20).step(0.01).name('De
 outlineFolder.add(outlineParams, 'depthBias').min(0).max(5).step(0.01).name('Depth Bias').onChange(updateParams)
 outlineFolder.add(outlineParams, 'normalMult').min(0).max(10).step(0.01).name('Normal Strength').onChange(updateParams)
 outlineFolder.add(outlineParams, 'normalBias').min(0).max(5).step(0.01).name('Normal Bias').onChange(updateParams)
+
+outlineFolder.add(outlineParams, 'thickness').min(1).max(5).step(0.1).name('Outline Thickness')
+    .onChange(v => quadMaterial.uniforms.uThickness.value = v)
 /**
  * 六宫格布局参数
  */
