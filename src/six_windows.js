@@ -292,7 +292,9 @@ window.addEventListener('resize', updateSizes)
  */
 const gltfLoader = new GLTFLoader()
 let taxiModel = null
-gltfLoader.load('/going_merry.glb', (gltf) => {
+gltfLoader.load(    
+    import.meta.env.BASE_URL + 'going_merry.glb',   // ← 改这里
+    (gltf) =>  {
     taxiModel = gltf.scene
     scene.add(taxiModel)
     console.log('模型加载成功！')

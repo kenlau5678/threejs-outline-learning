@@ -183,8 +183,8 @@ const gltfLoader = new GLTFLoader()
 let taxiModel = null
 
 gltfLoader.load(
-    '/going_merry.glb',
-    (gltf) =>
+    import.meta.env.BASE_URL + 'going_merry.glb',   // ← 改这里
+    (gltf) => 
     {
         taxiModel = gltf.scene
         
